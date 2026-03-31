@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChestScope Helper 胸鏡報告小幫手</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="app-title">
+        <span>ChestScope Helper</span>
+        <span class="subtitle">胸鏡報告小幫手</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="btn-settings" title="Settings 設定">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Body: Left Panel + Main Panel -->
+    <div class="app-body">
+      <!-- Left Panel -->
+      <aside class="left-panel">
+        <!-- Search -->
+        <div class="panel-section">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search templates...">
+          </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="panel-section">
+          <div class="panel-section-title">Category 類別</div>
+          <div id="category-list"></div>
+        </div>
+
+        <!-- Subcategories -->
+        <div class="panel-section">
+          <div class="panel-section-title">Subcategory 子類別</div>
+          <div id="subcategory-list" class="subcategory-list">
+            <div class="empty-state" style="padding: 20px;">
+              <span class="empty-hint">Select a category first</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="panel-section">
+          <div class="panel-section-title">Tags 標籤</div>
+          <div id="tag-list" class="tag-list"></div>
+        </div>
+
+        <!-- Template Library -->
+        <div class="panel-section">
+          <button class="template-library-btn" id="btn-template-library">
+            📚 Template Library 模板庫
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Panel -->
+      <main class="main-panel" id="main-panel">
+        <!-- Empty State (shown when no category selected) -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">🫁</div>
+          <div class="empty-text">Select a category to start</div>
+          <div class="empty-hint">選擇一個類別開始建立報告</div>
+        </div>
+
+        <!-- Report Sections (hidden initially) -->
+        <div id="report-content" class="hidden">
+          <!-- Report Header -->
+          <div class="report-section">
+            <div class="section-header">
+              <div class="section-title" id="report-title">Report</div>
+            </div>
+            <div class="report-header-fields">
+              <div class="field-group">
+                <label class="field-label">Examination Date</label>
+                <input type="date" class="field-input" id="field-date">
+              </div>
+              <div class="field-group">
+                <label class="field-label">Physician</label>
+                <input type="text" class="field-input" id="field-physician" placeholder="Dr.">
+              </div>
+              <div class="field-group">
+                <label class="field-label">Patient ID</label>
+                <input type="text" class="field-input" id="field-patient-id" placeholder="Patient ID">
+              </div>
+            </div>
+          </div>
+
+          <!-- Indication -->
+          <div class="report-section">
+            <div class="section-header">
+              <div class="section-title">Indication</div>
+            </div>
+            <textarea class="section-textarea" id="field-indication" rows="2" placeholder="e.g., Evaluation of suspected pleural effusion..."></textarea>
+          </div>
+
+          <!-- Technique -->
+          <div class="report-section">
+            <div class="section-header">
+              <div class="section-title">Technique</div>
+            </div>
+            <div class="finding-template-text" id="technique-content"></div>
+          </div>
+
+          <!-- Findings -->
+          <div class="report-section">
+            <div class="section-header">
+              <div class="section-title">Findings</div>
+            </div>
+            <div class="findings-container" id="findings-container">
+              <div class="empty-state" id="findings-empty" style="padding: 20px;">
+                <span class="empty-hint">Select subcategories from the left panel to add findings</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interventional Procedure (hidden by default) -->
+          <div class="report-section hidden" id="interventional-section">
+            <div class="section-header">
+              <div class="section-title">Interventional Procedure</div>
+            </div>
+            <div class="findings-container" id="interventional-container"></div>
+          </div>
+
+          <!-- Impression -->
+          <div class="report-section">
+            <div class="section-header">
+              <div class="section-title">Impression</div>
+            </div>
+            <div id="impression-container">
+               <div class="empty-state" id="impression-empty" style="padding: 10px;">
+                <span class="empty-hint">Impression will auto-populate from selected findings</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Final Report Preview -->
+          <div class="report-section report-preview-section">
+            <div class="section-header">
+              <div class="section-title">Final Report Preview</div>
+            </div>
+            <textarea class="report-preview" id="report-preview" placeholder="Your complete report will appear here..." spellcheck="false"></textarea>
+            <div class="report-actions">
+              <button class="btn btn-primary" id="btn-copy">📋 Copy Report</button>
+              <button class="btn btn-secondary" id="btn-reset">🔄 Reset</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Data Backup Modal -->
+  <div class="modal-overlay hidden" id="settings-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">💾 Backup & Restore 資料備份</div>
+        <button class="modal-close" data-modal-close>&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 0;">
+        <div class="tabs-container">
+          <div class="tabs-header">
+            <button class="tab-btn active" data-tab="export">匯出資料 (EXPORT)</button>
+            <button class="tab-btn" data-tab="import">匯入資料 (IMPORT)</button>
+          </div>
+          
+          <!-- Export Tab -->
+          <div class="tab-content active" id="tab-export">
+            <div class="info-box blue-box">
+              <div class="info-box-title">💡 傳送方式選擇</div>
+              <ol class="info-list">
+                <li>推薦：下載備份檔 (.json)</li>
+                <li>複製文字並傳送至其他裝置</li>
+              </ol>
+            </div>
+            <div class="action-container">
+              <button class="btn btn-success full-width" id="btn-export-json">
+                <span style="font-size: 1.2xl; margin-right: 8px;">📥</span> 下載備份檔案 (.json)
+              </button>
+              <button class="btn btn-secondary full-width" style="margin-top: 8px;" id="btn-copy-json">
+                📋 複製文字
+              </button>
+            </div>
+          </div>
+          
+          <!-- Import Tab -->
+          <div class="tab-content" id="tab-import">
+            <div class="info-box warning-box">
+              <div class="info-box-title">⚠️ 注意事項</div>
+              <p>匯入將會 <strong style="color: var(--danger);">完全覆蓋</strong> 您目前裝置上的現有資料。請確認您已備份重要內容。</p>
+            </div>
+            
+            <div class="action-container">
+              <input type="file" id="import-file-input" accept=".json" class="hidden">
+              <button class="btn btn-outline-success full-width" id="btn-import-trigger">
+                <span style="font-size: 1.2xl; margin-right: 8px;">📤</span> 選擇備份檔案 (.json)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Library Modal -->
+  <div class="modal-overlay hidden" id="template-modal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <div class="modal-title">📚 Template Library 模板庫</div>
+        <button class="modal-close" data-modal-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="template-library-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-modal-close>Close 關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="data/template-data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/templates.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
