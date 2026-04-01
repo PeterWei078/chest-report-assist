@@ -264,6 +264,19 @@
     if (sub.interventional) {
       state.parsedInterventional[subId] = Templates.parseTemplate(sub.interventional);
     }
+
+    // Auto-fill indication if template has one and field is empty
+    if (sub.indication) {
+      var indField = document.getElementById('field-indication');
+      if (indField && !indField.value.trim()) {
+        indField.value = sub.indication;
+      }
+    }
+
+    // Apply technique if template has one and this is the first selection
+    if (sub.technique && state.selectedSubcategories.length === 1) {
+      renderTechnique({ defaultTechnique: sub.technique });
+    }
   }
 
   // ===== Render Impression Block =====

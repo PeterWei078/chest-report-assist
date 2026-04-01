@@ -217,6 +217,26 @@
     var form = document.createElement('div');
     form.className = 'template-edit-form';
 
+    // Indication and Technique (custom additions only)
+    var indicationTA, techniqueTA;
+    if (isCustomAddition) {
+      var indEditLabel = document.createElement('label');
+      indEditLabel.textContent = 'Indication';
+      form.appendChild(indEditLabel);
+      indicationTA = document.createElement('textarea');
+      indicationTA.value = sub.indication || '';
+      indicationTA.rows = 2;
+      form.appendChild(indicationTA);
+
+      var techEditLabel = document.createElement('label');
+      techEditLabel.textContent = 'Technique';
+      form.appendChild(techEditLabel);
+      techniqueTA = document.createElement('textarea');
+      techniqueTA.value = sub.technique || '';
+      techniqueTA.rows = 4;
+      form.appendChild(techniqueTA);
+    }
+
     // Findings
     var findingsLabel = document.createElement('label');
     findingsLabel.textContent = 'Findings Template';
@@ -265,6 +285,8 @@
       if (isCustomAddition) {
         for (var i = 0; i < custom.additions.length; i++) {
           if (custom.additions[i].id === sub.id) {
+            if (indicationTA) custom.additions[i].indication = indicationTA.value;
+            if (techniqueTA) custom.additions[i].technique = techniqueTA.value;
             custom.additions[i].findings = findingsTA.value;
             custom.additions[i].impression = impTA.value;
             if (intTA) custom.additions[i].interventional = intTA.value;
@@ -382,6 +404,24 @@
     nameZhInput.placeholder = 'e.g. 雙側肋膜積液';
     form.appendChild(nameZhInput);
 
+    // Indication
+    var indLabel = document.createElement('label');
+    indLabel.textContent = 'Indication（選填）';
+    form.appendChild(indLabel);
+    var indTA = document.createElement('textarea');
+    indTA.rows = 2;
+    indTA.placeholder = 'e.g. Evaluation of pleural effusion';
+    form.appendChild(indTA);
+
+    // Technique
+    var techLabel = document.createElement('label');
+    techLabel.textContent = 'Technique（選填）';
+    form.appendChild(techLabel);
+    var techTA = document.createElement('textarea');
+    techTA.rows = 4;
+    techTA.placeholder = 'e.g. Bedside ultrasound was performed using a [curvilinear/linear] probe...';
+    form.appendChild(techTA);
+
     // Findings
     var findingsLabel = document.createElement('label');
     findingsLabel.textContent = 'Findings Template';
@@ -457,6 +497,8 @@
         id: 'custom-' + Date.now(),
         nameEn: nameEn,
         nameZh: nameZhInput.value.trim() || nameEn,
+        indication: indTA.value,
+        technique: techTA.value,
         findings: findingsTA.value,
         impression: impTA.value
       };
