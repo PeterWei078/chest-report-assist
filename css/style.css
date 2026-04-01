@@ -991,6 +991,24 @@ body {
   margin-top: 0;
 }
 
+.template-edit-form input[type="text"],
+.template-edit-form select {
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.template-edit-form input[type="text"]:focus,
+.template-edit-form select:focus {
+  border-color: var(--accent-primary);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
   .app-body {

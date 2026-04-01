@@ -143,9 +143,20 @@
   }
 
   // ===== Template Library UI =====
-  function renderTemplateLibrary(templates, onEdit) {
+  function renderTemplateLibrary(templates, onEdit, onNew) {
     var container = document.getElementById('template-library-content');
     container.innerHTML = '';
+
+    if (onNew) {
+      var newBtn = document.createElement('button');
+      newBtn.className = 'btn btn-primary';
+      newBtn.textContent = '+ New Template 新增模板';
+      newBtn.style.marginBottom = '16px';
+      newBtn.addEventListener('click', function() {
+        onNew(templates.categories);
+      });
+      container.appendChild(newBtn);
+    }
 
     templates.categories.forEach(function(cat) {
       var catTitle = document.createElement('h3');
@@ -173,8 +184,17 @@
     });
   }
 
-  function renderTemplateEditForm(sub, cat, container, onSave) {
+  function renderTemplateEditForm(sub, _cat, container, onSave, onNew) {
     container.innerHTML = '';
+
+    // Detect if this is a user-added custom template
+    var isCustomAddition = (function() {
+      var custom = window.ChestScope.Storage.getCustomTemplates();
+      for (var i = 0; i < custom.additions.length; i++) {
+        if (custom.additions[i].id === sub.id) return true;
+      }
+      return false;
+    })();
 
     var backBtn = document.createElement('button');
     backBtn.className = 'btn btn-secondary';
@@ -183,8 +203,8 @@
     backBtn.addEventListener('click', function() {
       var templates = window.ChestScope.Storage.getMergedTemplates();
       renderTemplateLibrary(templates, function(s, c) {
-        renderTemplateEditForm(s, c, container, onSave);
-      });
+        renderTemplateEditForm(s, c, container, onSave, onNew);
+      }, onNew);
     });
     container.appendChild(backBtn);
 
@@ -216,11 +236,12 @@
     form.appendChild(impTA);
 
     // Interventional
+    var intTA;
     if (sub.interventional !== undefined) {
       var intLabel = document.createElement('label');
       intLabel.textContent = 'Interventional Procedure Template';
       form.appendChild(intLabel);
-      var intTA = document.createElement('textarea');
+      intTA = document.createElement('textarea');
       intTA.value = sub.interventional || '';
       intTA.rows = 6;
       form.appendChild(intTA);
@@ -228,7 +249,7 @@
 
     container.appendChild(form);
 
-    // Save & Reset buttons
+    // Buttons
     var actions = document.createElement('div');
     actions.style.marginTop = '16px';
     actions.style.display = 'flex';
@@ -241,11 +262,20 @@
     saveBtn.style.fontSize = '16px';
     saveBtn.addEventListener('click', function() {
       var custom = window.ChestScope.Storage.getCustomTemplates();
-      custom.overrides[sub.id] = custom.overrides[sub.id] || {};
-      custom.overrides[sub.id].findings = findingsTA.value;
-      custom.overrides[sub.id].impression = impTA.value;
-      if (intTA) {
-        custom.overrides[sub.id].interventional = intTA.value;
+      if (isCustomAddition) {
+        for (var i = 0; i < custom.additions.length; i++) {
+          if (custom.additions[i].id === sub.id) {
+            custom.additions[i].findings = findingsTA.value;
+            custom.additions[i].impression = impTA.value;
+            if (intTA) custom.additions[i].interventional = intTA.value;
+            break;
+          }
+        }
+      } else {
+        custom.overrides[sub.id] = custom.overrides[sub.id] || {};
+        custom.overrides[sub.id].findings = findingsTA.value;
+        custom.overrides[sub.id].impression = impTA.value;
+        if (intTA) custom.overrides[sub.id].interventional = intTA.value;
       }
       window.ChestScope.Storage.saveCustomTemplates(custom);
       window.ChestScope.UI.showToast('Template saved!', 'success');
@@ -255,27 +285,198 @@
 
     var resetBtn = document.createElement('button');
     resetBtn.className = 'btn btn-secondary';
-    resetBtn.textContent = 'Reset to Default';
-    resetBtn.addEventListener('click', function() {
-      var custom = window.ChestScope.Storage.getCustomTemplates();
-      delete custom.overrides[sub.id];
-      window.ChestScope.Storage.saveCustomTemplates(custom);
-      // Reload original
-      var original = null;
-      window.TEMPLATE_DATA.categories.forEach(function(c) {
-        c.subcategories.forEach(function(s) {
-          if (s.id === sub.id) original = s;
-        });
+    if (isCustomAddition) {
+      resetBtn.textContent = 'Delete Custom Template';
+      resetBtn.addEventListener('click', function() {
+        if (!confirm('Delete this custom template? This cannot be undone.')) return;
+        var custom = window.ChestScope.Storage.getCustomTemplates();
+        custom.additions = custom.additions.filter(function(a) { return a.id !== sub.id; });
+        window.ChestScope.Storage.saveCustomTemplates(custom);
+        window.ChestScope.UI.showToast('Custom template deleted', 'success');
+        if (onSave) onSave();
+        var templates = window.ChestScope.Storage.getMergedTemplates();
+        renderTemplateLibrary(templates, function(s, c) {
+          renderTemplateEditForm(s, c, container, onSave, onNew);
+        }, onNew);
       });
-      if (original) {
-        findingsTA.value = original.findings || '';
-        impTA.value = original.impression || '';
-        if (intTA) intTA.value = original.interventional || '';
-      }
-      window.ChestScope.UI.showToast('Reset to default', 'success');
-      if (onSave) onSave();
-    });
+    } else {
+      resetBtn.textContent = 'Reset to Default';
+      resetBtn.addEventListener('click', function() {
+        var custom = window.ChestScope.Storage.getCustomTemplates();
+        delete custom.overrides[sub.id];
+        window.ChestScope.Storage.saveCustomTemplates(custom);
+        var original = null;
+        window.TEMPLATE_DATA.categories.forEach(function(c) {
+          c.subcategories.forEach(function(s) {
+            if (s.id === sub.id) original = s;
+          });
+        });
+        if (original) {
+          findingsTA.value = original.findings || '';
+          impTA.value = original.impression || '';
+          if (intTA) intTA.value = original.interventional || '';
+        }
+        window.ChestScope.UI.showToast('Reset to default', 'success');
+        if (onSave) onSave();
+      });
+    }
     actions.appendChild(resetBtn);
+
+    container.appendChild(actions);
+  }
+
+  function renderNewTemplateForm(categories, container, onSave, onNew) {
+    container.innerHTML = '';
+
+    function goBack() {
+      var templates = window.ChestScope.Storage.getMergedTemplates();
+      renderTemplateLibrary(templates, function(s, c) {
+        renderTemplateEditForm(s, c, container, onSave, onNew);
+      }, onNew);
+    }
+
+    var backBtn = document.createElement('button');
+    backBtn.className = 'btn btn-secondary';
+    backBtn.textContent = '← Back to list';
+    backBtn.style.marginBottom = '16px';
+    backBtn.addEventListener('click', goBack);
+    container.appendChild(backBtn);
+
+    var title = document.createElement('h3');
+    title.textContent = 'New Template 新增模板';
+    title.style.color = 'var(--accent-primary)';
+    title.style.marginBottom = '12px';
+    container.appendChild(title);
+
+    var form = document.createElement('div');
+    form.className = 'template-edit-form';
+
+    // Category selector
+    var catLabel = document.createElement('label');
+    catLabel.textContent = 'Category 類別';
+    form.appendChild(catLabel);
+    var catSelect = document.createElement('select');
+    categories.forEach(function(cat) {
+      var opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = cat.icon + ' ' + cat.nameEn + ' ' + cat.nameZh;
+      catSelect.appendChild(opt);
+    });
+    form.appendChild(catSelect);
+
+    // Name English
+    var nameEnLabel = document.createElement('label');
+    nameEnLabel.textContent = 'Name (English)';
+    form.appendChild(nameEnLabel);
+    var nameEnInput = document.createElement('input');
+    nameEnInput.type = 'text';
+    nameEnInput.placeholder = 'e.g. Bilateral Pleural Effusion';
+    form.appendChild(nameEnInput);
+
+    // Name Chinese
+    var nameZhLabel = document.createElement('label');
+    nameZhLabel.textContent = 'Name (Chinese) 中文名稱（選填）';
+    form.appendChild(nameZhLabel);
+    var nameZhInput = document.createElement('input');
+    nameZhInput.type = 'text';
+    nameZhInput.placeholder = 'e.g. 雙側肋膜積液';
+    form.appendChild(nameZhInput);
+
+    // Findings
+    var findingsLabel = document.createElement('label');
+    findingsLabel.textContent = 'Findings Template';
+    form.appendChild(findingsLabel);
+    var findingsTA = document.createElement('textarea');
+    findingsTA.rows = 8;
+    findingsTA.placeholder = 'Use [option1/option2] for dropdowns, [x] for numbers, [free text] for text inputs.';
+    form.appendChild(findingsTA);
+
+    // Impression
+    var impLabel = document.createElement('label');
+    impLabel.textContent = 'Impression Template';
+    form.appendChild(impLabel);
+    var impTA = document.createElement('textarea');
+    impTA.rows = 4;
+    form.appendChild(impTA);
+
+    // Interventional toggle
+    var intRow = document.createElement('div');
+    intRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:12px;margin-bottom:4px;';
+    var intCheck = document.createElement('input');
+    intCheck.type = 'checkbox';
+    intCheck.id = 'new-tpl-int-check';
+    var intCheckLabel = document.createElement('label');
+    intCheckLabel.htmlFor = 'new-tpl-int-check';
+    intCheckLabel.textContent = 'Include Interventional Procedure section';
+    intCheckLabel.style.cssText = 'margin:0;font-weight:normal;';
+    intRow.appendChild(intCheck);
+    intRow.appendChild(intCheckLabel);
+    form.appendChild(intRow);
+
+    var intSection = document.createElement('div');
+    intSection.style.display = 'none';
+    var intLabel = document.createElement('label');
+    intLabel.textContent = 'Interventional Procedure Template';
+    intSection.appendChild(intLabel);
+    var intTA = document.createElement('textarea');
+    intTA.rows = 6;
+    intSection.appendChild(intTA);
+    form.appendChild(intSection);
+
+    intCheck.addEventListener('change', function() {
+      intSection.style.display = intCheck.checked ? 'block' : 'none';
+    });
+
+    container.appendChild(form);
+
+    // Save & Cancel
+    var actions = document.createElement('div');
+    actions.style.marginTop = '16px';
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.textContent = 'Save Template 儲存模板';
+    saveBtn.style.padding = '10px 24px';
+    saveBtn.style.fontSize = '16px';
+    saveBtn.addEventListener('click', function() {
+      var nameEn = nameEnInput.value.trim();
+      if (!nameEn) {
+        window.ChestScope.UI.showToast('Please enter a template name', 'warning');
+        nameEnInput.focus();
+        return;
+      }
+      if (!findingsTA.value.trim()) {
+        window.ChestScope.UI.showToast('Findings template cannot be empty', 'warning');
+        findingsTA.focus();
+        return;
+      }
+      var newAddition = {
+        categoryId: catSelect.value,
+        id: 'custom-' + Date.now(),
+        nameEn: nameEn,
+        nameZh: nameZhInput.value.trim() || nameEn,
+        findings: findingsTA.value,
+        impression: impTA.value
+      };
+      if (intCheck.checked) {
+        newAddition.interventional = intTA.value;
+      }
+      var custom = window.ChestScope.Storage.getCustomTemplates();
+      custom.additions.push(newAddition);
+      window.ChestScope.Storage.saveCustomTemplates(custom);
+      window.ChestScope.UI.showToast('Template saved! 模板已儲存', 'success');
+      if (onSave) onSave();
+      goBack();
+    });
+    actions.appendChild(saveBtn);
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = 'Cancel 取消';
+    cancelBtn.addEventListener('click', goBack);
+    actions.appendChild(cancelBtn);
 
     container.appendChild(actions);
   }
@@ -290,6 +491,7 @@
     initModals: initModals,
     showToast: showToast,
     renderTemplateLibrary: renderTemplateLibrary,
-    renderTemplateEditForm: renderTemplateEditForm
+    renderTemplateEditForm: renderTemplateEditForm,
+    renderNewTemplateForm: renderNewTemplateForm
   };
 })();

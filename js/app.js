@@ -715,16 +715,19 @@
     document.getElementById('btn-template-library').addEventListener('click', function() {
       var templates = Storage.getMergedTemplates();
       var content = document.getElementById('template-library-content');
+      function onSave() {
+        state.templates = Storage.getMergedTemplates();
+        Search.buildIndex(state.templates);
+        if (state.activeCategory) {
+          renderSubcategories();
+        }
+      }
+      function onNew(categories) {
+        UI.renderNewTemplateForm(categories, content, onSave, onNew);
+      }
       UI.renderTemplateLibrary(templates, function(sub, cat) {
-        UI.renderTemplateEditForm(sub, cat, content, function() {
-          // Reload templates after save
-          state.templates = Storage.getMergedTemplates();
-          Search.buildIndex(state.templates);
-          if (state.activeCategory) {
-            renderSubcategories();
-          }
-        });
-      });
+        UI.renderTemplateEditForm(sub, cat, content, onSave, onNew);
+      }, onNew);
       UI.openModal(document.getElementById('template-modal'));
     });
 
