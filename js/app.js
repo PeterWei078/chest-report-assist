@@ -15,6 +15,7 @@
     activeCategory: null,
     selectedSubcategories: [],   // array of subcategory ids
     parsedFindings: {},          // subcategoryId -> parsed segments array
+    parsedIndication: null,      // parsed segments for indication
     parsedTechnique: null,       // parsed segments for technique
     parsedImpressions: {},       // subcategoryId -> parsed segments array
     parsedInterventional: {},    // subcategoryId -> parsed segments array
@@ -108,6 +109,26 @@
     var cat = getCategory(categoryId);
     if (!cat) return null;
     return cat.subcategories.find(function(s) { return s.id === subId; });
+  }
+
+  // ===== Render Indication =====
+  function renderIndication(text) {
+    var contentDiv = document.getElementById('indication-content');
+    var textarea = document.getElementById('field-indication');
+    if (text && text.trim()) {
+      state.parsedIndication = Templates.parseTemplate(text);
+      contentDiv.innerHTML = '';
+      Templates.renderTemplate(state.parsedIndication, contentDiv);
+      bindPlaceholderEvents(contentDiv);
+      contentDiv.style.display = '';
+      textarea.style.display = 'none';
+    } else {
+      state.parsedIndication = null;
+      contentDiv.innerHTML = '';
+      contentDiv.style.display = 'none';
+      textarea.style.display = '';
+      textarea.value = '';
+    }
   }
 
   // ===== Render Technique =====
@@ -265,11 +286,11 @@
       state.parsedInterventional[subId] = Templates.parseTemplate(sub.interventional);
     }
 
-    // Auto-fill indication if template has one and field is empty
-    if (sub.indication) {
+    // Apply indication template if available and indication is currently empty
+    if (sub.indication && !state.parsedIndication) {
       var indField = document.getElementById('field-indication');
-      if (indField && !indField.value.trim()) {
-        indField.value = sub.indication;
+      if (!indField || !indField.value.trim()) {
+        renderIndication(sub.indication);
       }
     }
 
@@ -458,6 +479,12 @@
 
   function updateSegmentValue(segId, value, container) {
     // Find which segment array this belongs to
+    // Check indication
+    if (state.parsedIndication) {
+      var indSeg = state.parsedIndication.find(function(s) { return s.id === segId; });
+      if (indSeg) { indSeg.value = value; return; }
+    }
+
     // Check technique
     if (state.parsedTechnique) {
       var techSeg = state.parsedTechnique.find(function(s) { return s.id === segId; });
@@ -495,7 +522,7 @@
       examDate: document.getElementById('field-date').value,
       physician: document.getElementById('field-physician').value,
       patientId: document.getElementById('field-patient-id').value,
-      indication: document.getElementById('field-indication').value,
+      indication: state.parsedIndication ? Templates.resolveSegments(state.parsedIndication) : document.getElementById('field-indication').value,
       technique: state.parsedTechnique ? Templates.resolveSegments(state.parsedTechnique) : '',
       findings: [],
       interventional: [],
@@ -534,6 +561,12 @@
   }
 
   function syncAllSegments() {
+    // Sync indication
+    if (state.parsedIndication) {
+      var indContainer = document.getElementById('indication-content');
+      Templates.syncSegmentsFromDOM(state.parsedIndication, indContainer);
+    }
+
     // Sync technique
     if (state.parsedTechnique) {
       var techContainer = document.getElementById('technique-content');
@@ -617,7 +650,7 @@
         if (cat) renderTechnique(cat);
       }
 
-      document.getElementById('field-indication').value = '';
+      renderIndication('');
       document.getElementById('field-patient-id').value = '';
       document.getElementById('report-preview').value = '';
 

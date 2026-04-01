@@ -217,17 +217,19 @@
     var form = document.createElement('div');
     form.className = 'template-edit-form';
 
-    // Indication and Technique (custom additions only)
-    var indicationTA, techniqueTA;
-    if (isCustomAddition) {
-      var indEditLabel = document.createElement('label');
-      indEditLabel.textContent = 'Indication';
-      form.appendChild(indEditLabel);
-      indicationTA = document.createElement('textarea');
-      indicationTA.value = sub.indication || '';
-      indicationTA.rows = 2;
-      form.appendChild(indicationTA);
+    // Indication (all templates)
+    var indEditLabel = document.createElement('label');
+    indEditLabel.textContent = 'Indication Template';
+    form.appendChild(indEditLabel);
+    var indicationTA = document.createElement('textarea');
+    indicationTA.value = sub.indication || '';
+    indicationTA.rows = 2;
+    indicationTA.placeholder = 'Use [option1/option2] for dropdowns, [free text] for inputs.';
+    form.appendChild(indicationTA);
 
+    // Technique (custom additions only)
+    var techniqueTA;
+    if (isCustomAddition) {
       var techEditLabel = document.createElement('label');
       techEditLabel.textContent = 'Technique';
       form.appendChild(techEditLabel);
@@ -295,6 +297,7 @@
         }
       } else {
         custom.overrides[sub.id] = custom.overrides[sub.id] || {};
+        custom.overrides[sub.id].indication = indicationTA.value;
         custom.overrides[sub.id].findings = findingsTA.value;
         custom.overrides[sub.id].impression = impTA.value;
         if (intTA) custom.overrides[sub.id].interventional = intTA.value;
@@ -333,6 +336,7 @@
             if (s.id === sub.id) original = s;
           });
         });
+        indicationTA.value = '';
         if (original) {
           findingsTA.value = original.findings || '';
           impTA.value = original.impression || '';
