@@ -59,6 +59,12 @@
   function getCustomTemplates() {
     var custom = read(KEYS.CUSTOM_TEMPLATES);
     if (!custom) return { overrides: {}, additions: [], deletions: [] };
+    
+    // Ensure properties exist to prevent undefined errors
+    custom.overrides = custom.overrides || {};
+    custom.additions = custom.additions || [];
+    custom.deletions = custom.deletions || [];
+    
     return custom;
   }
 

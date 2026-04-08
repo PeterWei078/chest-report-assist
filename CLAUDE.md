@@ -34,11 +34,11 @@ js/app.js              → main controller (consumes all above)
 ```
 
 ### Module responsibilities
-- **`data/template-data.js`** — Clinical template content only. `window.TEMPLATE_DATA` with categories → subcategories. Each subcategory has `findings`, `impression`, `interventional` strings with `[placeholder]` syntax.
-- **`js/storage.js`** — LocalStorage CRUD. Key function: `getMergedTemplates()` deep-clones `TEMPLATE_DATA` then applies user overrides/additions/deletions from `chestscope_custom_templates`.
+- **`data/template-data.js`** — Clinical template content only. `window.TEMPLATE_DATA` with categories → subcategories. Each subcategory has `findings`, `impression`, `interventional` strings with `[placeholder]` syntax. Built-in subcategories may also have `indication`. Custom additions (in LocalStorage) additionally support `technique`.
+- **`js/storage.js`** — LocalStorage CRUD. Key function: `getMergedTemplates()` deep-clones `TEMPLATE_DATA` then applies user overrides/additions/deletions from `chestscope_custom_templates`. Merge order: (1) deep clone, (2) apply `overrides` to built-in subcats, (3) apply `deletions`, (4) push `additions`. **Overrides cannot target custom additions** — those must be edited directly in `additions[]`.
 - **`js/templates.js`** — Placeholder pipeline: `parseTemplate(text)` → segments → `renderTemplate(segments, container)` → DOM → `syncSegmentsFromDOM()` → `resolveSegments()` → plain text. **`globalIdCounter`** is a module-level var (never resets) ensuring unique `ph-N` IDs across all concurrent parsed templates.
-- **`js/app.js`** — All state and event wiring. `state.parsedFindings/parsedImpressions/parsedInterventional/parsedTechnique` hold segment arrays keyed by subcategoryId. `updatePreview()` syncs DOM → segments → `assembleReport()`.
-- **`js/ui.js`** — Floating dropdown menu (positioned with viewport flip logic), toast notifications, template library edit form.
+- **`js/app.js`** — All state and event wiring. `state.parsedFindings/parsedImpressions/parsedInterventional/parsedTechnique/parsedIndication` hold segment arrays. `updatePreview()` syncs DOM → segments → `assembleReport()`.
+- **`js/ui.js`** — Floating dropdown menu (positioned with viewport flip logic), toast notifications, template library UI: `renderTemplateLibrary`, `renderTemplateEditForm`, `renderNewTemplateForm`.
 - **`js/search.js`** — In-memory token-AND search over concatenated text fields, debounced 150ms.
 - **`js/report.js`** — `assembleReport(state)` → plain text suitable for EMR paste.
 
@@ -59,9 +59,13 @@ Regex `\[([^\]]+)\]` classifies placeholders in template strings:
 
 1. **`globalIdCounter` in `templates.js` must never reset** — multiple subcategory templates are active in the DOM simultaneously. Resetting it causes `ph-0` ID collisions and `updateSegmentValue()` updates the wrong segment.
 
-2. **`updateSegmentValue(segId, value)` in `app.js`** searches all segment arrays (technique, all findings, all impressions, all interventional) to find the segment by `segId`. The lookup must use `segId` (the parameter), not any loop variable.
+2. **`updateSegmentValue(segId, value)` in `app.js`** searches all segment arrays (indication, technique, all findings, all impressions, all interventional) to find the segment by `segId`. The lookup must use `segId` (the parameter), not any loop variable.
 
 3. **Template data is immutable at runtime** — user edits go into the overlay (`chestscope_custom_templates`), never into `TEMPLATE_DATA` directly. `getMergedTemplates()` always produces a fresh deep clone.
+
+4. **Custom additions cannot be updated via `overrides`** — `getMergedTemplates()` applies `overrides` before pushing `additions`, so `overrides[customId]` never matches a custom addition. In `renderTemplateEditForm`, detect `isCustomAddition` by checking `custom.additions` and update `additions[i]` directly.
+
+5. **Indication uses a hybrid rendering approach** — `#indication-content` (div, hidden by default) renders placeholder syntax; `#field-indication` (textarea, visible by default) handles free-text. `renderIndication(text)` in `app.js` switches between them: non-empty text activates placeholder mode, empty string restores the textarea.
 
 ## Clinical Content Notes
 
